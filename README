@@ -1,0 +1,43 @@
+# Hades Discord Bot
+
+Slash-command driven Discord bot for playful utility commands and voice-enabled music playback.
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Install [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) on your system so it is available on the `PATH` (for example `pip install yt-dlp` or `brew install yt-dlp`).
+3. Create a `.env` file that defines `TOKEN`, `CLIENT_ID`, `GUILD_ID`, `GROQ_API_KEY`. Add `YOUTUBE_COOKIE` for restricted videos and `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` to enable Spotify link lookups.
+4. Register the commands with your guild:
+   ```bash
+   node commands/deploy-commands.js
+   ```
+5. Run the bot with `node commands/index.js`.
+
+## Music Commands
+
+The music subsystem uses `@discordjs/voice`, `yt-dlp`, `yt-search`, and optional Spotify lookups to resolve and stream tracks directly from YouTube.
+
+- `/play <query or url>` — join your current voice channel and start playback from a YouTube URL, search YouTube when given plain text, or resolve Spotify track links to a matching YouTube source.
+- `/skip` — skip the current track (requires being in the same voice channel as the bot).
+- `/stop` — clear the queue and disconnect the bot.
+- `/queue` — show what is currently playing plus the next 10 upcoming tracks.
+
+The bot automatically leaves the channel once the queue finishes.
+
+## Moderation Commands
+
+- `/clear <count>` — bulk-delete up to 100 recent messages in the current channel.
+- `/mute <member>` — applies a server-wide `Muted` role (auto-created) so the user cannot chat or speak.
+- `/unmute <member>` — removes the Muted role.
+
+You need appropriate Discord permissions (Manage Messages or Moderate Members) to use these.
+
+## Fun & Utility Commands
+
+- `/quote` — sends a randomized feline quote in Hades’ voice.
+- `/fact` — fetches a random cat fact from catfact.ninja.
+- `/meme` — posts a cat image/meme from The Cat API.
+- `/remind <minutes> <message>` — schedules a reminder directly in the channel after the requested delay.
