@@ -41,3 +41,12 @@ You need appropriate Discord permissions (Manage Messages or Moderate Members) t
 - `/fact` — fetches a random cat fact from catfact.ninja.
 - `/meme` — posts a cat image/meme from The Cat API.
 - `/remind <minutes> <message>` — schedules a reminder directly in the channel after the requested delay.
+
+## Valorant Commands
+
+These commands use the HenrikDev Valorant API and require `VALORANT_API_KEY` in your `.env`.
+
+- `/valorantstats [riotid] [tag] [hours]` — competitive MMR summary for the last N hours (default 12) plus paged match details. If `riotid` + `tag` are omitted, the command uses the account linked via `/valorantlink`.
+- `/valorantlink <riotid> <tag>` — link a Riot ID to your Discord account (stored locally).
+- `/valorantunlink` — remove your linked Riot ID.
+- `/valorantallstats [riotid] [tag]` — detailed all‑time stats (based on stored matches when available, otherwise paged matchlist fallback).

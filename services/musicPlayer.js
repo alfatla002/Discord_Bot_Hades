@@ -7,6 +7,7 @@ const {
 	createAudioResource,
 	demuxProbe,
 	joinVoiceChannel,
+	entersState,
 	VoiceConnectionStatus,
 } = require('@discordjs/voice');
 const ffmpeg = require('ffmpeg-static');
@@ -46,6 +47,9 @@ function getOrCreateQueue(guildId) {
 	};
 
 	player.on(AudioPlayerStatus.Idle, () => {
+		if (queue.current) {
+			console.log('Player went idle for:', queue.current.title ?? queue.current.url);
+		}
 		queue.current = null;
 		if (queue.songs.length) {
 			playNext(guildId).catch(error => {
@@ -62,6 +66,9 @@ function getOrCreateQueue(guildId) {
 		if (queue.songs.length) {
 			playNext(guildId).catch(err => console.error('Failed to recover after error:', err));
 		}
+	});
+	player.on('stateChange', (oldState, newState) => {
+		console.log('Player state change:', oldState.status, '->', newState.status);
 	});
 
 	queues.set(guildId, queue);
@@ -109,8 +116,12 @@ async function enqueue(interaction, query) {
 			selfDeaf: false,
 		});
 
+		queue.connection.on('stateChange', (oldState, newState) => {
+			console.log('Voice state change:', oldState.status, '->', newState.status);
+		});
 		queue.connection.on(VoiceConnectionStatus.Disconnected, () => cleanupQueue(interaction.guildId));
 		queue.connection.on(VoiceConnectionStatus.Destroyed, () => cleanupQueue(interaction.guildId));
+		queue.connection.on('error', error => console.error('Voice connection error:', error));
 		queue.connection.subscribe(queue.player);
 	} else if (queue.connection.joinConfig.channelId !== voiceChannel.id) {
 		queue.connection.destroy();
@@ -120,9 +131,21 @@ async function enqueue(interaction, query) {
 			adapterCreator: interaction.guild.voiceAdapterCreator,
 			selfDeaf: false,
 		});
+		queue.connection.on('stateChange', (oldState, newState) => {
+			console.log('Voice state change:', oldState.status, '->', newState.status);
+		});
 		queue.connection.on(VoiceConnectionStatus.Disconnected, () => cleanupQueue(interaction.guildId));
 		queue.connection.on(VoiceConnectionStatus.Destroyed, () => cleanupQueue(interaction.guildId));
+		queue.connection.on('error', error => console.error('Voice connection error:', error));
 		queue.connection.subscribe(queue.player);
+	}
+
+	try {
+		await entersState(queue.connection, VoiceConnectionStatus.Ready, 20_000);
+	} catch (error) {
+		console.error('Voice connection failed to become ready:', error);
+		cleanupQueue(interaction.guildId);
+		throw new Error('Failed to connect to the voice channel. Please try again.');
 	}
 
 	const song = await resolveSong(query, interaction.user);
@@ -323,7 +346,11 @@ async function createStreamResource(url) {
 	}
 
 	const args = buildYtDlpArgs([...YTDLP_STREAM_ARGS, normalizedUrl]);
-	const downloader = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'ignore'] });
+	const downloader = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+	let stderr = '';
+	downloader.stderr?.on('data', chunk => {
+		stderr += chunk.toString();
+	});
 
 	if (!downloader.stdout) {
 		downloader.kill('SIGTERM');
@@ -331,17 +358,24 @@ async function createStreamResource(url) {
 	}
 
 	downloader.once('error', error => console.error('yt-dlp process error:', error));
+	downloader.once('close', code => {
+		if (code !== 0) {
+			console.error('yt-dlp exited with code', code, stderr.trim());
+		} else if (stderr.trim()) {
+			console.warn('yt-dlp warnings:', stderr.trim());
+		}
+	});
 
-const probe = await demuxProbe(downloader.stdout);
-const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
+	const probe = await demuxProbe(downloader.stdout);
+	const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
 
-resource.playStream.once('close', () => {
-	if (!downloader.killed) {
-		downloader.kill('SIGTERM');
-	}
-});
+	resource.playStream.once('close', () => {
+		if (!downloader.killed) {
+			downloader.kill('SIGTERM');
+		}
+	});
 
-return resource;
+	return resource;
 }
 
 async function fetchYtInfo(input) {
