@@ -29,6 +29,18 @@ async function getMmrHistory({ region, platform, name, tag }) {
 	return response.data;
 }
 
+async function getMmrHistoryV1({ region, name, tag }) {
+	const apiKey = getApiKey();
+	if (!apiKey) {
+		throw new Error('VALORANT_API_KEY is missing.');
+	}
+	const client = createClient(apiKey);
+	const encodedName = encodeURIComponent(name);
+	const encodedTag = encodeURIComponent(tag);
+	const response = await client.get(`/valorant/v1/mmr-history/${region}/${encodedName}/${encodedTag}`);
+	return response.data;
+}
+
 async function getMmrDetailsV3({ region, platform, name, tag }) {
 	const apiKey = getApiKey();
 	if (!apiKey) {
@@ -113,6 +125,7 @@ async function getAccount({ name, tag }) {
 module.exports = {
 	getApiKey,
 	getMmrHistory,
+	getMmrHistoryV1,
 	getMmrDetailsV3,
 	getMmrDetailsV2,
 	getMatchesV3,

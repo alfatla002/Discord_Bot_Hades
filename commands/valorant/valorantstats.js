@@ -9,6 +9,7 @@ const {
 const {
 	getApiKey,
 	getMmrHistory,
+	getMmrHistoryV1,
 	getStoredMmrHistory,
 	getMmrDetailsV3,
 	getMmrDetailsV2,
@@ -26,9 +27,18 @@ function getEntryTimestamp(entry) {
 	if (!entry) return null;
 	const raw = entry.date_raw ?? entry.dateRaw ?? entry.timestamp;
 	if (raw !== undefined && raw !== null) {
-		const numeric = Number(raw);
-		if (!Number.isNaN(numeric)) {
-			return numeric > 1e12 ? numeric : numeric * 1000;
+		if (typeof raw === 'string') {
+			const numeric = Number(raw);
+			if (!Number.isNaN(numeric)) {
+				return numeric > 1e12 ? numeric : numeric * 1000;
+			}
+			const parsed = Date.parse(raw);
+			if (!Number.isNaN(parsed)) return parsed;
+		} else {
+			const numeric = Number(raw);
+			if (!Number.isNaN(numeric)) {
+				return numeric > 1e12 ? numeric : numeric * 1000;
+			}
 		}
 	}
 
@@ -458,13 +468,30 @@ module.exports = {
 			const now = Date.now();
 			const localNow = new Date();
 			const startOfDay = new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate()).getTime();
-		const cutoff = now - hours * 60 * 60 * 1000;
+			const cutoff = now - hours * 60 * 60 * 1000;
 
-			const timestamps = history.map(entry => getEntryTimestamp(entry)).filter(Boolean);
-			const windowEntries = history.filter(entry => {
+			let timestamps = history.map(entry => getEntryTimestamp(entry)).filter(Boolean);
+			let windowEntries = history.filter(entry => {
 				const ts = getEntryTimestamp(entry);
 				return ts && ts >= cutoff;
 			});
+
+			if (history.length === 0 || windowEntries.length === 0) {
+				try {
+					const v1Response = await getMmrHistoryV1({ region: REGION, name, tag: riotTag });
+					const v1History = Array.isArray(v1Response?.data) ? v1Response.data : [];
+					if (v1History.length > 0) {
+						history = v1History;
+						timestamps = history.map(entry => getEntryTimestamp(entry)).filter(Boolean);
+						windowEntries = history.filter(entry => {
+							const ts = getEntryTimestamp(entry);
+							return ts && ts >= cutoff;
+						});
+					}
+				} catch (error) {
+					// Best-effort; keep existing history if v1 fails.
+				}
+			}
 
 	let gained = 0;
 	let lost = 0;

@@ -9,9 +9,18 @@ function getEntryTimestamp(entry) {
 	if (!entry) return null;
 	const raw = entry.date_raw ?? entry.dateRaw ?? entry.timestamp;
 	if (raw !== undefined && raw !== null) {
-		const numeric = Number(raw);
-		if (!Number.isNaN(numeric)) {
-			return numeric > 1e12 ? numeric : numeric * 1000;
+		if (typeof raw === 'string') {
+			const numeric = Number(raw);
+			if (!Number.isNaN(numeric)) {
+				return numeric > 1e12 ? numeric : numeric * 1000;
+			}
+			const parsed = Date.parse(raw);
+			if (!Number.isNaN(parsed)) return parsed;
+		} else {
+			const numeric = Number(raw);
+			if (!Number.isNaN(numeric)) {
+				return numeric > 1e12 ? numeric : numeric * 1000;
+			}
 		}
 	}
 
