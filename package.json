@@ -20,6 +20,8 @@
     "groq-sdk": "^0.7.0",
     "libsodium-wrappers": "^0.7.16",
     "opusscript": "^0.0.8",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "yt-search": "^2.13.1"
   }
 }

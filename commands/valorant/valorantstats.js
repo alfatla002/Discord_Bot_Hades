@@ -90,12 +90,13 @@ function buildSummaryEmbed({
 	firstMatchUnix,
 	lastMatchUnix,
 	games,
+	wins,
+	losses,
 	gained,
 	lost,
 	net,
 	currentTier,
 	currentRr,
-	currentElo,
 	peakTier,
 	windowEmpty,
 	cardImage,
@@ -125,6 +126,8 @@ function buildSummaryEmbed({
 	embed.addFields(
 		{ name: 'Window', value: `${windowLabel} (since <t:${windowStartUnix}:f>)`, inline: false },
 		{ name: 'Games', value: `${games}`, inline: true },
+		{ name: 'Wins', value: `${wins}`, inline: true },
+		{ name: 'Losses', value: `${losses}`, inline: true },
 		{ name: 'RR Gained', value: `${gained}`, inline: true },
 		{ name: 'RR Lost', value: `${lost}`, inline: true },
 		{ name: 'Net', value: `${net}`, inline: true },
@@ -150,10 +153,6 @@ function buildSummaryEmbed({
 
 	if (currentRr !== null && currentRr !== undefined) {
 		embed.addFields({ name: 'Current RR', value: `${currentRr}`, inline: true });
-	}
-
-	if (currentElo !== null && currentElo !== undefined) {
-		embed.addFields({ name: 'Current Elo', value: `${currentElo}`, inline: true });
 	}
 
 	if (winRate !== null && winRate !== undefined) {
@@ -495,10 +494,18 @@ module.exports = {
 
 	let gained = 0;
 	let lost = 0;
+	let wins = 0;
+	let losses = 0;
 	for (const entry of windowEntries) {
 		const change = getRrDelta(entry);
-		if (change > 0) gained += change;
-		if (change < 0) lost += Math.abs(change);
+		if (change > 0) {
+			gained += change;
+			wins += 1;
+		}
+		if (change < 0) {
+			lost += Math.abs(change);
+			losses += 1;
+		}
 	}
 
 			const net = gained - lost;
@@ -619,12 +626,13 @@ module.exports = {
 				firstMatchUnix,
 				lastMatchUnix,
 				games,
+				wins,
+				losses,
 				gained,
 				lost,
 				net,
 				currentTier,
 				currentRr,
-				currentElo,
 				peakTier,
 				windowEmpty: windowEntries.length === 0,
 				cardImage,
