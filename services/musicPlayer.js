@@ -17,8 +17,23 @@ const ytSearch = require('yt-search');
 const { isSpotifyTrackUrl, getSpotifyTrackInfo } = require('./spotifyClient');
 
 const TARGET_VOLUME = 0.02; // 2% volume
-const YTDLP_BASE_ARGS = ['--no-check-certificates', '--no-warnings', '--prefer-free-formats'];
-const YTDLP_STREAM_ARGS = ['-o', '-', '-q', '-f', 'bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--default-search', 'auto'];
+const YTDLP_BASE_ARGS = [
+	'--no-check-certificates',
+	'--no-warnings',
+	'--prefer-free-formats',
+	'--no-playlist',
+	'--extractor-args',
+	'youtube:player_client=ios,android,web',
+];
+const YTDLP_STREAM_ARGS = [
+	'-o',
+	'-',
+	'-q',
+	'-f',
+	'bestaudio[ext=m4a]/bestaudio/best',
+	'--default-search',
+	'auto',
+];
 if (ffmpeg) {
 	process.env.FFMPEG_PATH = ffmpeg;
 }
@@ -339,13 +354,20 @@ function buildYtDlpHeaders() {
 	return [`Cookie: ${process.env.YOUTUBE_COOKIE}`];
 }
 
+function buildYtDlpCookieArgs() {
+	if (!process.env.YOUTUBE_COOKIES_PATH) {
+		return [];
+	}
+	return ['--cookies', process.env.YOUTUBE_COOKIES_PATH];
+}
+
 async function createStreamResource(url) {
 	const normalizedUrl = normalizeYouTubeUrl(url);
 	if (!normalizedUrl) {
 		throw new Error(`Unable to normalize URL for playback: ${url}`);
 	}
 
-	const args = buildYtDlpArgs([...YTDLP_STREAM_ARGS, normalizedUrl]);
+	const args = buildYtDlpArgs([...YTDLP_STREAM_ARGS, ...buildYtDlpCookieArgs(), normalizedUrl]);
 	const downloader = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 	let stderr = '';
 	downloader.stderr?.on('data', chunk => {
@@ -366,7 +388,16 @@ async function createStreamResource(url) {
 		}
 	});
 
-	const probe = await demuxProbe(downloader.stdout);
+	let probe;
+	try {
+		probe = await demuxProbe(downloader.stdout);
+	} catch (error) {
+		if (!downloader.killed) {
+			downloader.kill('SIGTERM');
+		}
+		const details = stderr.trim();
+		throw new Error(details ? `yt-dlp failed: ${details}` : error.message);
+	}
 	const resource = createAudioResource(probe.stream, { inputType: probe.type, inlineVolume: true });
 
 	resource.playStream.once('close', () => {
@@ -379,7 +410,7 @@ async function createStreamResource(url) {
 }
 
 async function fetchYtInfo(input) {
-	const args = buildYtDlpArgs(['--dump-single-json', input]);
+	const args = buildYtDlpArgs(['--dump-single-json', ...buildYtDlpCookieArgs(), input]);
 	const process = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 	let stdout = '';
 	let stderr = '';

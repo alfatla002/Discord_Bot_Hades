@@ -28,7 +28,22 @@ module.exports = {
 			await interaction.editReply(message);
 		} catch (error) {
 			console.error(error);
-			await interaction.editReply('Unable to play that track right now.');
+			const message = getPlaybackErrorMessage(error);
+			await interaction.editReply(message);
 		}
 	},
 };
+
+function getPlaybackErrorMessage(error) {
+	const details = (error?.message ?? '').toLowerCase();
+	if (details.includes('sign in') || details.includes('confirm you’re not a bot') || details.includes("confirm you're not a bot")) {
+		return 'YouTube is blocking playback. Add a cookies file via `YOUTUBE_COOKIES_PATH` and try again.';
+	}
+	if (details.includes('video is unavailable') || details.includes('private') || details.includes('copyright')) {
+		return 'That video is unavailable for playback. Try another track or a different link.';
+	}
+	if (details.includes('yt-dlp failed')) {
+		return 'Unable to fetch audio from YouTube right now. Try again or provide a different link.';
+	}
+	return 'Unable to play that track right now.';
+}

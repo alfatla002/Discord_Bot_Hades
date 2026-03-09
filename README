@@ -9,7 +9,7 @@ Slash-command driven Discord bot for playful utility commands and voice-enabled 
    npm install
    ```
 2. Install [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) on your system so it is available on the `PATH` (for example `pip install yt-dlp` or `brew install yt-dlp`).
-3. Create a `.env` file that defines `TOKEN`, `CLIENT_ID`, `GUILD_ID`, `GROQ_API_KEY`. Add `YOUTUBE_COOKIE` for restricted videos and `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` to enable Spotify link lookups.
+3. Create a `.env` file that defines `TOKEN`, `CLIENT_ID`, `GUILD_ID`, `GROQ_API_KEY`. Add `YOUTUBE_COOKIE` or `YOUTUBE_COOKIES_PATH` for restricted videos and `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` to enable Spotify link lookups.
 4. Register the commands with your guild:
    ```bash
    node commands/deploy-commands.js
