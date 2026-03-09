@@ -270,12 +270,18 @@ async function resolveSong(query, user) {
 	}
 
 	if (isYouTubeUrl(query)) {
-		const info = await getVideoInfo(query, user);
-		if (info) {
+		const normalizedUrl = normalizeYouTubeUrl(query);
+		if (normalizedUrl) {
+			const info = {
+				title: 'YouTube track',
+				url: normalizedUrl,
+				duration: 'Unknown',
+				requestedBy: user?.tag ?? 'Unknown',
+			};
 			cacheSong(cacheKey, info);
 			return info;
 		}
-		console.warn('Direct video lookup failed, falling back to search.');
+		console.warn('Direct URL normalization failed, falling back to search.');
 	}
 
 	const song = await findPlayableVideo(query, user);
@@ -302,7 +308,7 @@ async function findPlayableVideo(searchTerm, user) {
 	let videos = [];
 	try {
 		const result = await ytSearch(searchTerm);
-		videos = result?.videos?.slice(0, 5) ?? [];
+		videos = result?.videos?.slice(0, 3) ?? [];
 	} catch (error) {
 		console.error('YouTube search failed:', error);
 		throw new Error('Unable to search for that query right now.');
