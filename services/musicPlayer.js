@@ -13,6 +13,7 @@ const {
 const ffmpeg = require('ffmpeg-static');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
+const fs = require('node:fs');
 const ytSearch = require('yt-search');
 const { isSpotifyTrackUrl, getSpotifyTrackInfo } = require('./spotifyClient');
 
@@ -29,6 +30,8 @@ const YTDLP_BASE_ARGS = [
 	'--remote-components',
 	'ejs:github',
 ];
+const YTDLP_BIN = process.env.YTDLP_PATH
+	|| (fs.existsSync('/usr/local/bin/yt-dlp') ? '/usr/local/bin/yt-dlp' : 'yt-dlp');
 const YTDLP_STREAM_ARGS = [
 	'-o',
 	'-',
@@ -397,7 +400,7 @@ async function createStreamResource(url) {
 	}
 
 	const args = buildYtDlpArgs([...YTDLP_STREAM_ARGS, ...buildYtDlpCookieArgs(), normalizedUrl]);
-	const downloader = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+	const downloader = spawn(YTDLP_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 	let stderr = '';
 	downloader.stderr?.on('data', chunk => {
 		stderr += chunk.toString();
@@ -454,7 +457,7 @@ function cacheSong(cacheKey, song) {
 
 async function fetchYtInfo(input) {
 	const args = buildYtDlpArgs(['--dump-single-json', ...buildYtDlpCookieArgs(), input]);
-	const process = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+	const process = spawn(YTDLP_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 	let stdout = '';
 	let stderr = '';
 
