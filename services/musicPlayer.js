@@ -24,6 +24,10 @@ const YTDLP_BASE_ARGS = [
 	'--no-playlist',
 	'--extractor-args',
 	'youtube:player_client=ios,android,web',
+	'--js-runtimes',
+	'node',
+	'--remote-components',
+	'ejs:github',
 ];
 const YTDLP_STREAM_ARGS = [
 	'-o',
