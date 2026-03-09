@@ -39,6 +39,8 @@ if (ffmpeg) {
 }
 
 const queues = new Map();
+const searchCache = new Map();
+const MAX_CACHE_ENTRIES = 50;
 
 function getOrCreateQueue(guildId) {
 	let queue = queues.get(guildId);
@@ -196,6 +198,12 @@ async function playNext(guildId) {
 		queue.player.play(resource);
 	} catch (error) {
 		console.error('Unable to start playback:', error);
+		if (Array.isArray(nextSong.fallbacks) && nextSong.fallbacks.length) {
+			const fallback = nextSong.fallbacks.shift();
+			queue.songs.unshift({ ...fallback, fallbacks: nextSong.fallbacks });
+			await playNext(guildId);
+			return;
+		}
 		queue.current = null;
 		if (queue.songs.length) {
 			await playNext(guildId);
@@ -239,23 +247,33 @@ function getQueue(guildId) {
 }
 
 async function resolveSong(query, user) {
+	const cacheKey = (query ?? '').trim().toLowerCase();
+	if (cacheKey && searchCache.has(cacheKey)) {
+		return { ...searchCache.get(cacheKey) };
+	}
+
 	if (isSpotifyTrackUrl(query)) {
 		const spotifyTrack = await getSpotifyTrackInfo(query);
 		if (spotifyTrack) {
 			const searchTerm = `${spotifyTrack.name} ${spotifyTrack.artist}`.trim();
-			return await findPlayableVideo(searchTerm, user);
+			const song = await findPlayableVideo(searchTerm, user);
+			cacheSong(cacheKey, song);
+			return song;
 		}
 	}
 
 	if (isYouTubeUrl(query)) {
 		const info = await getVideoInfo(query, user);
 		if (info) {
+			cacheSong(cacheKey, info);
 			return info;
 		}
 		console.warn('Direct video lookup failed, falling back to search.');
 	}
 
-	return await findPlayableVideo(query, user);
+	const song = await findPlayableVideo(query, user);
+	cacheSong(cacheKey, song);
+	return song;
 }
 
 async function getVideoInfo(url, user) {
@@ -283,16 +301,23 @@ async function findPlayableVideo(searchTerm, user) {
 		throw new Error('Unable to search for that query right now.');
 	}
 
-	for (const video of videos) {
-		const normalizedUrl = normalizeYouTubeUrl(video.url);
-		if (!normalizedUrl) {
-			continue;
-		}
+	const candidates = videos
+		.map(video => {
+			const normalizedUrl = normalizeYouTubeUrl(video.url);
+			if (!normalizedUrl) return null;
+			return {
+				title: video.title,
+				url: normalizedUrl,
+				duration: video.timestamp ?? (video.duration ? formatDuration(Number(video.duration.seconds ?? video.duration)) : 'Unknown'),
+				requestedBy: user?.tag ?? 'Unknown',
+			};
+		})
+		.filter(Boolean);
 
-		const info = await getVideoInfo(normalizedUrl, user);
-		if (info) {
-			return info;
-		}
+	if (candidates.length) {
+		const [primary, ...fallbacks] = candidates;
+		primary.fallbacks = fallbacks;
+		return primary;
 	}
 
 	throw new Error('Unable to find a playable version of that query.');
@@ -407,6 +432,20 @@ async function createStreamResource(url) {
 	});
 
 	return resource;
+}
+
+function cacheSong(cacheKey, song) {
+	if (!cacheKey) return;
+	if (searchCache.has(cacheKey)) {
+		searchCache.delete(cacheKey);
+	}
+	searchCache.set(cacheKey, { ...song });
+	if (searchCache.size > MAX_CACHE_ENTRIES) {
+		const firstKey = searchCache.keys().next().value;
+		if (firstKey) {
+			searchCache.delete(firstKey);
+		}
+	}
 }
 
 async function fetchYtInfo(input) {
