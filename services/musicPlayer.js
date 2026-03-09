@@ -14,6 +14,7 @@ const ffmpeg = require('ffmpeg-static');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const fs = require('node:fs');
+const os = require('node:os');
 const ytSearch = require('yt-search');
 const { isSpotifyTrackUrl, getSpotifyTrackInfo } = require('./spotifyClient');
 
@@ -32,6 +33,7 @@ const YTDLP_BASE_ARGS = [
 ];
 const YTDLP_BIN = process.env.YTDLP_PATH
 	|| (fs.existsSync('/usr/local/bin/yt-dlp') ? '/usr/local/bin/yt-dlp' : 'yt-dlp');
+const YTDLP_CACHE_DIR = process.env.YTDLP_CACHE_DIR || `${os.homedir()}/.cache/yt-dlp`;
 const YTDLP_STREAM_ARGS = [
 	'-o',
 	'-',
@@ -488,7 +490,7 @@ async function fetchYtInfo(input) {
 }
 
 function buildYtDlpArgs(additionalArgs = []) {
-	const args = [...YTDLP_BASE_ARGS, ...additionalArgs];
+	const args = [...YTDLP_BASE_ARGS, '--cache-dir', YTDLP_CACHE_DIR, ...additionalArgs];
 	const headers = buildYtDlpHeaders();
 	for (const header of headers) {
 		args.push('--add-header', header);
